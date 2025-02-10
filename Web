@@ -1,0 +1,189 @@
+For real-time web scraping, the AI agent should continuously listen for user queries and perform the following steps dynamically:
+	1.	User inputs a question.
+	2.	Gemini 1.5 refines the query.
+	3.	It performs a Google search in real time.
+	4.	It extracts content from the top-ranked page dynamically.
+	5.	It summarizes the content using Gemini 1.5.
+	6.	It takes a screenshot of the webpage.
+	7.	Repeats the process in real-time whenever a new query is asked.
+
+Key Features of This Version
+
+✅ Live input – Keeps listening for user queries.
+✅ Automatic web navigation – Extracts and summarizes data dynamically.
+✅ Works with dynamic JavaScript pages using Playwright.
+✅ Real-time processing – Runs continuously for new inputs.
+
+Installation Requirements
+
+Run the following to install dependencies:
+
+pip install google-generativeai selenium playwright beautifulsoup4 speechrecognition pyttsx3
+playwright install
+
+Real-Time AI Web Scraper with Gemini 1.5
+
+import time
+import google.generativeai as genai
+import speech_recognition as sr
+import pyttsx3
+from playwright.sync_api import sync_playwright
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from bs4 import BeautifulSoup
+from PIL import Image
+
+# Set up Gemini 1.5 Pro API Key
+GEMINI_API_KEY = "your_gemini_api_key"  # Replace with your Gemini API Key
+genai.configure(api_key=GEMINI_API_KEY)
+
+# Initialize text-to-speech
+engine = pyttsx3.init()
+engine.setProperty("rate", 150)  # Speed of speech
+
+def speak(text):
+    """Converts text to speech."""
+    engine.say(text)
+    engine.runAndWait()
+
+def listen_for_query():
+    """Uses microphone to listen for user input (optional)."""
+    recognizer = sr.Recognizer()
+    with sr.Microphone() as source:
+        print("Listening for a query...")
+        recognizer.adjust_for_ambient_noise(source)
+        audio = recognizer.listen(source)
+
+        try:
+            query = recognizer.recognize_google(audio)
+            print(f"User said: {query}")
+            return query
+        except sr.UnknownValueError:
+            print("Sorry, could not understand the query.")
+            return None
+        except sr.RequestError:
+            print("Error with speech recognition service.")
+            return None
+
+def refine_query_with_gemini(user_query):
+    """Uses Gemini 1.5 Pro to refine the search query for better results."""
+    model = genai.GenerativeModel("gemini-1.5-pro")
+    response = model.generate_content(f"Optimize this search query for better Google search results: {user_query}")
+    return response.text.strip()
+
+def get_search_result(query):
+    """Search Google and get the first result link dynamically."""
+    driver = webdriver.Chrome()  # Ensure you have the Chrome WebDriver installed
+    driver.get("https://www.google.com")
+
+    search_box = driver.find_element(By.NAME, "q")
+    search_box.send_keys(query)
+    search_box.send_keys(Keys.RETURN)
+    time.sleep(3)
+
+    # Extract first search result link
+    first_result = driver.find_element(By.CSS_SELECTOR, "h3")
+    first_result.click()
+    time.sleep(5)
+
+    # Get current page URL
+    page_url = driver.current_url
+    driver.quit()
+    
+    return page_url
+
+def extract_text_from_page(url):
+    """Scrapes text content dynamically from the page."""
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto(url, timeout=60000)
+        
+        # Extract HTML content
+        html_content = page.content()
+        soup = BeautifulSoup(html_content, "html.parser")
+        
+        # Extract text from paragraphs
+        paragraphs = soup.find_all("p")
+        extracted_text = " ".join([p.get_text() for p in paragraphs if p.get_text()])
+        
+        browser.close()
+    return extracted_text[:3000]  # Limit text to avoid long responses
+
+def summarize_with_gemini(text):
+    """Uses Gemini 1.5 Pro to summarize the extracted article text."""
+    model = genai.GenerativeModel("gemini-1.5-pro")
+    response = model.generate_content(f"Summarize this article concisely:\n\n{text}")
+    return response.text.strip()
+
+def take_screenshot(url, output_file="screenshot.png"):
+    """Takes a screenshot of the webpage."""
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto(url, timeout=60000)
+        page.screenshot(path=output_file, full_page=True)
+        browser.close()
+    
+    return output_file
+
+def main():
+    """Real-time scraping loop that listens for user queries and processes them."""
+    while True:
+        print("\nAsk a question (or type 'exit' to quit): ")
+        query = input()  # Replace with `listen_for_query()` for voice input
+        
+        if query.lower() == "exit":
+            print("Exiting real-time scraping agent...")
+            break
+
+        # Step 1: Use Gemini 1.5 to refine the search
+        refined_query = refine_query_with_gemini(query)
+        print(f"Refined Query: {refined_query}")
+
+        # Step 2: Get the first search result URL
+        result_url = get_search_result(refined_query)
+        print(f"Found article: {result_url}")
+
+        # Step 3: Extract article text
+        article_text = extract_text_from_page(result_url)
+        print("Extracted Text: ", article_text[:500], "...")  # Print preview
+
+        # Step 4: Summarize with Gemini
+        summary = summarize_with_gemini(article_text)
+        print("Summarized Content: ", summary)
+        speak(summary)  # Read out the summary (optional)
+
+        # Step 5: Capture screenshot
+        screenshot_file = take_screenshot(result_url)
+        print(f"Screenshot saved as {screenshot_file}")
+
+        # Display the screenshot
+        img = Image.open(screenshot_file)
+        img.show()
+
+        # Wait for the next input
+        time.sleep(2)
+
+# Run the real-time agent
+if __name__ == "__main__":
+    main()
+
+How This Works in Real Time
+	1.	The user asks a question (e.g., “What are the latest trends in AI?”).
+	2.	The agent listens for the question and refines it using Gemini 1.5 Pro.
+	3.	It performs a live Google search and visits the first result.
+	4.	The agent extracts content dynamically from the page.
+	5.	It summarizes the content using Gemini 1.5 Pro.
+	6.	It captures and displays a screenshot of the page.
+	7.	The process repeats continuously for new queries.
+
+Enhancements You Can Add
+
+✅ Enable voice input: Uncomment listen_for_query() instead of input().
+✅ Extract more pages: Modify to get the top 3-5 search results.
+✅ Store previous searches: Save URLs, summaries, and screenshots in a local database.
+✅ Automate sending results: Email or message screenshots to a user.
+
+Would you like me to add real-time result storage or automated notifications? 🚀
