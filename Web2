@@ -1,0 +1,114 @@
+import time
+import google.generativeai as genai
+from playwright.sync_api import sync_playwright
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from bs4 import BeautifulSoup
+from PIL import Image
+
+# Set up Gemini 1.5 Pro API Key
+GEMINI_API_KEY = "your_gemini_api_key"  # Replace with your Gemini API Key
+genai.configure(api_key=GEMINI_API_KEY)
+
+def refine_query_with_gemini(user_query):
+    """Uses Gemini 1.5 Pro to refine the search query for better results."""
+    model = genai.GenerativeModel("gemini-1.5-pro")
+    response = model.generate_content(f"Optimize this search query for better Google search results: {user_query}")
+    return response.text.strip()
+
+def get_search_result(query):
+    """Search Google and get the first result link dynamically."""
+    driver = webdriver.Chrome()  # Ensure you have the Chrome WebDriver installed
+    driver.get("https://www.google.com")
+
+    search_box = driver.find_element(By.NAME, "q")
+    search_box.send_keys(query)
+    search_box.send_keys(Keys.RETURN)
+    time.sleep(3)
+
+    # Click the first search result
+    first_result = driver.find_element(By.CSS_SELECTOR, "h3")
+    first_result.click()
+    time.sleep(5)
+
+    # Get current page URL
+    page_url = driver.current_url
+    driver.quit()
+    
+    return page_url
+
+def extract_text_from_page(url):
+    """Scrapes text content dynamically from the page."""
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto(url, timeout=60000)
+        
+        html_content = page.content()
+        soup = BeautifulSoup(html_content, "html.parser")
+        
+        # Extract text from paragraphs
+        paragraphs = soup.find_all("p")
+        extracted_text = " ".join([p.get_text() for p in paragraphs if p.get_text()])
+        
+        browser.close()
+    return extracted_text[:3000]  # Limit text length
+
+def summarize_with_gemini(text):
+    """Uses Gemini 1.5 Pro to summarize the extracted article text."""
+    model = genai.GenerativeModel("gemini-1.5-pro")
+    response = model.generate_content(f"Summarize this article concisely:\n\n{text}")
+    return response.text.strip()
+
+def take_screenshot(url, output_file="screenshot.png"):
+    """Takes a screenshot of the webpage."""
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto(url, timeout=60000)
+        page.screenshot(path=output_file, full_page=True)
+        browser.close()
+    
+    return output_file
+
+def main():
+    """Real-time scraping loop that listens for user queries and processes them."""
+    while True:
+        print("\nEnter your search query (or type 'exit' to quit): ")
+        query = input().strip()
+        
+        if query.lower() == "exit":
+            print("Exiting real-time scraping agent...")
+            break
+
+        # Step 1: Use Gemini 1.5 to refine the search
+        refined_query = refine_query_with_gemini(query)
+        print(f"Refined Query: {refined_query}")
+
+        # Step 2: Get the first search result URL
+        result_url = get_search_result(refined_query)
+        print(f"Found article: {result_url}")
+
+        # Step 3: Extract article text
+        article_text = extract_text_from_page(result_url)
+        print("\nExtracted Text Preview: ", article_text[:500], "...")  # Print preview
+
+        # Step 4: Summarize with Gemini
+        summary = summarize_with_gemini(article_text)
+        print("\nSummarized Content:\n", summary)
+
+        # Step 5: Capture screenshot
+        screenshot_file = take_screenshot(result_url)
+        print(f"\nScreenshot saved as {screenshot_file}")
+
+        # Display the screenshot
+        img = Image.open(screenshot_file)
+        img.show()
+
+        # Wait for the next input
+        time.sleep(2)
+
+# Run the real-time agent
+if __name__ == "__main__":
+    main()
