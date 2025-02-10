@@ -1,0 +1,124 @@
+import time
+import google.generativeai as genai
+from playwright.sync_api import sync_playwright
+from bs4 import BeautifulSoup
+from PIL import Image
+
+# Set up Gemini 1.5 Pro API Key
+GEMINI_API_KEY = "your_gemini_api_key"  # Replace with your Gemini API Key
+genai.configure(api_key=GEMINI_API_KEY)
+
+def refine_query_with_gemini(user_query):
+    """Uses Gemini 1.5 Pro to refine the search query for better results."""
+    model = genai.GenerativeModel("gemini-1.5-pro")
+    response = model.generate_content(f"Optimize this search query for better Google search results: {user_query}")
+    return response.text.strip()
+
+def get_search_result_playwright(query):
+    """Search Google and get the first result link using Playwright instead of Selenium."""
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False)  # Run with headless=False to avoid detection
+        page = browser.new_page()
+        page.goto("https://www.google.com", timeout=60000)
+
+        # Search the query
+        page.fill("input[name=q]", query)
+        page.keyboard.press("Enter")
+        time.sleep(3)  # Wait for search results to load
+
+        # Select the first search result
+        try:
+            first_result = page.locator("h3").first
+            first_result.click()
+            time.sleep(5)  # Wait for the page to load
+
+            # Get current page URL
+            page_url = page.url
+        except:
+            print("Error: No search results found.")
+            page_url = None
+
+        browser.close()
+    
+    return page_url
+
+def extract_text_from_page(url):
+    """Scrapes text content dynamically from the page."""
+    if not url:
+        print("No URL provided, skipping text extraction.")
+        return ""
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto(url, timeout=60000)
+        
+        html_content = page.content()
+        soup = BeautifulSoup(html_content, "html.parser")
+        
+        # Extract text from paragraphs
+        paragraphs = soup.find_all("p")
+        extracted_text = " ".join([p.get_text() for p in paragraphs if p.get_text()])
+        
+        browser.close()
+    return extracted_text[:3000]  # Limit text length
+
+def summarize_with_gemini(text):
+    """Uses Gemini 1.5 Pro to summarize the extracted article text."""
+    model = genai.GenerativeModel("gemini-1.5-pro")
+    response = model.generate_content(f"Summarize this article concisely:\n\n{text}")
+    return response.text.strip()
+
+def take_screenshot(url, output_file="screenshot.png"):
+    """Takes a screenshot of the webpage."""
+    if not url:
+        print("No URL provided, skipping screenshot.")
+        return None
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto(url, timeout=60000)
+        page.screenshot(path=output_file, full_page=True)
+        browser.close()
+    
+    return output_file
+
+def main():
+    """Real-time scraping loop using Playwright for search."""
+    while True:
+        print("\nEnter your search query (or type 'exit' to quit): ")
+        query = input().strip()
+        
+        if query.lower() == "exit":
+            print("Exiting real-time scraping agent...")
+            break
+
+        # Step 1: Use Gemini 1.5 to refine the search
+        refined_query = refine_query_with_gemini(query)
+        print(f"Refined Query: {refined_query}")
+
+        # Step 2: Get the first search result URL using Playwright (not Selenium)
+        result_url = get_search_result_playwright(refined_query)
+        print(f"Found article: {result_url}")
+
+        # Step 3: Extract article text
+        article_text = extract_text_from_page(result_url)
+        print("\nExtracted Text Preview: ", article_text[:500], "...")
+
+        # Step 4: Summarize with Gemini
+        summary = summarize_with_gemini(article_text)
+        print("\nSummarized Content:\n", summary)
+
+        # Step 5: Capture screenshot
+        screenshot_file = take_screenshot(result_url)
+        if screenshot_file:
+            print(f"\nScreenshot saved as {screenshot_file}")
+            img = Image.open(screenshot_file)
+            img.show()
+
+        time.sleep(2)
+
+# Run the real-time agent
+if __name__ == "__main__":
+    main()
