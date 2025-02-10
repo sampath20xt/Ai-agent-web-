@@ -1,0 +1,129 @@
+import time
+import google.generativeai as genai
+import undetected_chromedriver.v2 as uc
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from bs4 import BeautifulSoup
+from PIL import Image
+
+# ✅ Set up Gemini 1.5 Pro API Key
+GEMINI_API_KEY = "your_gemini_api_key"  # 🔥 Replace with your Gemini API Key
+genai.configure(api_key=GEMINI_API_KEY)
+
+def refine_query_with_gemini(user_query):
+    """Uses Gemini 1.5 Pro to refine the search query for better results."""
+    model = genai.GenerativeModel("gemini-1.5-pro")
+    response = model.generate_content(f"Optimize this search query for better Google search results: {user_query}")
+    return response.text.strip()
+
+def get_search_result(query):
+    """🔍 Perform Google search using an actual Chrome session to bypass detection."""
+    options = uc.ChromeOptions()
+    options.add_argument("--start-maximized")  # Open browser maximized
+    options.add_argument("--disable-blink-features=AutomationControlled")  # Hide automation fingerprint
+
+    driver = uc.Chrome(options=options)  # 🚀 Use real Chrome
+    driver.get("https://www.google.com")
+
+    time.sleep(2)  # Allow time for the page to load
+
+    # Find search bar and enter query
+    search_box = driver.find_element(By.NAME, "q")
+    search_box.send_keys(query)
+    search_box.send_keys(Keys.RETURN)
+
+    time.sleep(3)  # Wait for results to load
+
+    # Extract first search result link
+    try:
+        first_result = driver.find_element(By.CSS_SELECTOR, "h3")
+        first_result.click()
+        time.sleep(5)  # Allow the new page to load
+        page_url = driver.current_url
+    except:
+        print("❌ Error: No search results found.")
+        page_url = None
+
+    driver.quit()
+    return page_url
+
+def extract_text_from_page(url):
+    """📄 Extract text content dynamically from the page."""
+    if not url:
+        print("⚠️ No URL provided, skipping text extraction.")
+        return ""
+
+    import requests
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    response = requests.get(url, headers=headers)
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    
+    # Extract text from paragraphs
+    paragraphs = soup.find_all("p")
+    extracted_text = " ".join([p.get_text() for p in paragraphs if p.get_text()])
+
+    return extracted_text[:3000]  # Limit text length to avoid long responses
+
+def summarize_with_gemini(text):
+    """💡 Uses Gemini 1.5 Pro to summarize the extracted article text."""
+    model = genai.GenerativeModel("gemini-1.5-pro")
+    response = model.generate_content(f"Summarize this article concisely:\n\n{text}")
+    return response.text.strip()
+
+def take_screenshot(url, output_file="screenshot.png"):
+    """📸 Takes a screenshot of the webpage using Chrome."""
+    if not url:
+        print("⚠️ No URL provided, skipping screenshot.")
+        return None
+
+    options = uc.ChromeOptions()
+    options.add_argument("--start-maximized")  
+    driver = uc.Chrome(options=options)
+    
+    driver.get(url)
+    time.sleep(3)  # Allow the page to load fully
+
+    driver.save_screenshot(output_file)  # Capture screenshot
+    driver.quit()
+    
+    return output_file
+
+def main():
+    """💻 Real-time scraping loop using your installed Chrome."""
+    while True:
+        print("\nEnter your search query (or type 'exit' to quit): ")
+        query = input().strip()
+        
+        if query.lower() == "exit":
+            print("👋 Exiting real-time scraping agent...")
+            break
+
+        # Step 1: Use Gemini 1.5 to refine the search
+        refined_query = refine_query_with_gemini(query)
+        print(f"🎯 Refined Query: {refined_query}")
+
+        # Step 2: Get the first search result URL using undetected Chrome
+        result_url = get_search_result(refined_query)
+        print(f"🔗 Found article: {result_url}")
+
+        # Step 3: Extract article text
+        article_text = extract_text_from_page(result_url)
+        print("\n📜 Extracted Text Preview: ", article_text[:500], "...")
+
+        # Step 4: Summarize with Gemini
+        summary = summarize_with_gemini(article_text)
+        print("\n💡 Summarized Content:\n", summary)
+
+        # Step 5: Capture screenshot
+        screenshot_file = take_screenshot(result_url)
+        if screenshot_file:
+            print(f"\n📸 Screenshot saved as {screenshot_file}")
+            img = Image.open(screenshot_file)
+            img.show()
+
+        time.sleep(2)
+
+# Run the real-time agent
+if __name__ == "__main__":
+    main()
