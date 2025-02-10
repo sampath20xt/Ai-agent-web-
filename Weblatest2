@@ -1,0 +1,128 @@
+import time
+import google.generativeai as genai
+import undetected_chromedriver.v2 as uc
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from bs4 import BeautifulSoup
+from langchain.agents import initialize_agent, Tool
+from langchain.tools import Tool
+from PIL import Image
+
+# ✅ Set up Gemini 1.5 Pro API Key (Replace with yours)
+GEMINI_API_KEY = "your_gemini_api_key"
+genai.configure(api_key=GEMINI_API_KEY)
+
+def ai_agent_refine_query(user_query):
+    """Uses Gemini 1.5 Pro to refine search queries for better Google results."""
+    model = genai.GenerativeModel("gemini-1.5-pro")
+    response = model.generate_content(f"Optimize this search query for better Google search results: {user_query}")
+    return response.text.strip()
+
+def ai_agent_search_google(query):
+    """🔍 AI Agent performs Google search in real Chrome to bypass detection."""
+    options = uc.ChromeOptions()
+    options.add_argument("--start-maximized")
+    options.add_argument("--disable-blink-features=AutomationControlled")
+
+    driver = uc.Chrome(options=options)  # 🚀 Uses Real Chrome
+    driver.get("https://www.google.com")
+
+    time.sleep(2)
+    search_box = driver.find_element(By.NAME, "q")
+    search_box.send_keys(query)
+    search_box.send_keys(Keys.RETURN)
+
+    time.sleep(3)
+    first_result = driver.find_element(By.CSS_SELECTOR, "h3")
+    first_result.click()
+    time.sleep(5)
+
+    page_url = driver.current_url
+    driver.quit()
+    return page_url
+
+def ai_agent_extract_text(url):
+    """📄 AI Extracts text from the webpage."""
+    if not url:
+        return ""
+
+    import requests
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    response = requests.get(url, headers=headers)
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    paragraphs = soup.find_all("p")
+    extracted_text = " ".join([p.get_text() for p in paragraphs if p.get_text()])
+
+    return extracted_text[:3000]  # AI limits text length
+
+def ai_agent_summarize(text):
+    """💡 Uses Gemini AI to summarize the extracted text."""
+    model = genai.GenerativeModel("gemini-1.5-pro")
+    response = model.generate_content(f"Summarize this article concisely:\n\n{text}")
+    return response.text.strip()
+
+def ai_agent_take_screenshot(url, output_file="screenshot.png"):
+    """📸 AI Agent captures a screenshot of the page."""
+    if not url:
+        return None
+
+    options = uc.ChromeOptions()
+    driver = uc.Chrome(options=options)
+    driver.get(url)
+    time.sleep(3)
+
+    driver.save_screenshot(output_file)
+    driver.quit()
+    
+    return output_file
+
+# 🔥 Define AI Agent Tools (Using Gemini instead of ChatOpenAI)
+tools = [
+    Tool(name="Google Search", func=ai_agent_search_google, description="AI searches Google."),
+    Tool(name="Web Scraper", func=ai_agent_extract_text, description="AI extracts content."),
+    Tool(name="Summarization Agent", func=ai_agent_summarize, description="AI summarizes information."),
+    Tool(name="Screenshot Capture", func=ai_agent_take_screenshot, description="AI captures screenshots."),
+]
+
+# ✅ AI Agent Initialization (Using Gemini 1.5)
+def run_ai_agent(query):
+    """Runs AI-powered search, extraction, and summarization."""
+    refined_query = ai_agent_refine_query(query)
+    print(f"🎯 AI Refined Query: {refined_query}")
+
+    # AI searches Google
+    result_url = ai_agent_search_google(refined_query)
+    print(f"🔗 AI Found Article: {result_url}")
+
+    # AI Extracts Text
+    article_text = ai_agent_extract_text(result_url)
+    print("\n📜 AI Extracted Text:", article_text[:500], "...")
+
+    # AI Summarizes Content
+    summary = ai_agent_summarize(article_text)
+    print("\n💡 AI Summary:\n", summary)
+
+    # AI Takes Screenshot
+    screenshot_file = ai_agent_take_screenshot(result_url)
+    if screenshot_file:
+        print(f"\n📸 AI Screenshot saved: {screenshot_file}")
+        img = Image.open(screenshot_file)
+        img.show()
+
+def main():
+    """💻 AI-powered real-time web scraping"""
+    while True:
+        print("\nEnter your search query (or type 'exit' to quit): ")
+        query = input().strip()
+        
+        if query.lower() == "exit":
+            print("👋 Exiting AI scraping agent...")
+            break
+
+        run_ai_agent(query)
+        time.sleep(2)
+
+# 🚀 Run AI Web Scraping
+if __name__ == "__main__":
+    main()
