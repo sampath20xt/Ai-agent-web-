@@ -1,0 +1,164 @@
+# Agent: Web Scraper
+## Task: Scrape all the data from the site for company decision-making.
+
+
+LiteLLM.Info: If you need to debug this error, use `litellm.set_verbose=True'.
+
+2025-02-12 10:28:00,223 - 16816 - llm.py-llm:309 - ERROR: LiteLLM call failed: litellm.APIConnectionError: ('invalid_grant: Invalid JWT Signature.', {'error': 'invalid_grant', 'error_description': 'Invalid JWT Signature.'})
+Traceback (most recent call last):
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\litellm\main.py", line 2304, in completion
+    model_response = vertex_chat_completion.completion(  # type: ignore
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\litellm\llms\vertex_ai\gemini\vertex_and_google_ai_studio_gemini.py", line 1204, in completion
+    _auth_header, vertex_project = self._ensure_access_token(
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\litellm\llms\vertex_ai\vertex_llm_base.py", line 130, in _ensure_access_token
+    self._credentials, cred_project_id = self.load_auth(
+                                         ^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\litellm\llms\vertex_ai\vertex_llm_base.py", line 91, in load_auth
+    creds.refresh(Request())  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\google\oauth2\service_account.py", line 448, in refresh
+    access_token, expiry, _ = _client.jwt_grant(
+                              ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\google\oauth2\_client.py", line 299, in jwt_grant
+    response_data = _token_endpoint_request(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\google\oauth2\_client.py", line 270, in _token_endpoint_request
+    _handle_error_response(response_data, retryable_error)
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\google\oauth2\_client.py", line 69, in _handle_error_response
+    raise exceptions.RefreshError(
+google.auth.exceptions.RefreshError: ('invalid_grant: Invalid JWT Signature.', {'error': 'invalid_grant', 'error_description': 'Invalid JWT Signature.'})
+
+Traceback (most recent call last):
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\litellm\main.py", line 2304, in completion
+    model_response = vertex_chat_completion.completion(  # type: ignore
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\litellm\llms\vertex_ai\gemini\vertex_and_google_ai_studio_gemini.py", line 1204, in completion
+    _auth_header, vertex_project = self._ensure_access_token(
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\litellm\llms\vertex_ai\vertex_llm_base.py", line 130, in _ensure_access_token
+    self._credentials, cred_project_id = self.load_auth(
+                                         ^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\litellm\llms\vertex_ai\vertex_llm_base.py", line 91, in load_auth
+    creds.refresh(Request())  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\google\oauth2\service_account.py", line 448, in refresh
+    access_token, expiry, _ = _client.jwt_grant(
+                              ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\google\oauth2\_client.py", line 299, in jwt_grant
+    response_data = _token_endpoint_request(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\google\oauth2\_client.py", line 270, in _token_endpoint_request
+    _handle_error_response(response_data, retryable_error)
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\google\oauth2\_client.py", line 69, in _handle_error_response
+    raise exceptions.RefreshError(
+google.auth.exceptions.RefreshError: ('invalid_grant: Invalid JWT Signature.', {'error': 'invalid_grant', 'error_description': 'Invalid JWT Signature.'})
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\scrape.py", line 43, in <module>
+    result = crew.kickoff()
+             ^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\crewai\crew.py", line 558, in kickoff
+    result = self._run_sequential_process()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\crewai\crew.py", line 665, in _run_sequential_process
+    return self._execute_tasks(self.tasks)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\crewai\crew.py", line 767, in _execute_tasks
+    task_output = task.execute_sync(
+                  ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\crewai\task.py", line 302, in execute_sync
+    return self._execute_core(agent, context, tools)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\crewai\task.py", line 366, in _execute_core
+    result = agent.execute_task(
+             ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\crewai\agent.py", line 259, in execute_task
+    raise e
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\crewai\agent.py", line 248, in execute_task
+    result = self.agent_executor.invoke(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\crewai\agents\crew_agent_executor.py", line 112, in invoke
+    raise e
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\crewai\agents\crew_agent_executor.py", line 102, in invoke
+    formatted_answer = self._invoke_loop()
+                       ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\crewai\agents\crew_agent_executor.py", line 160, in _invoke_loop
+    raise e
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\crewai\agents\crew_agent_executor.py", line 140, in _invoke_loop
+    answer = self._get_llm_response()
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\crewai\agents\crew_agent_executor.py", line 210, in _get_llm_response
+    raise e
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\crewai\agents\crew_agent_executor.py", line 201, in _get_llm_response
+    answer = self.llm.call(
+             ^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\crewai\llm.py", line 252, in call
+    response = litellm.completion(**params)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\litellm\utils.py", line 1100, in wrapper
+    raise e
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\litellm\utils.py", line 978, in wrapper
+    result = original_function(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\litellm\main.py", line 2981, in completion
+    raise exception_type(
+          ^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\litellm\litellm_core_utils\exception_mapping_utils.py", line 2190, in exception_type
+    raise e
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\litellm\litellm_core_utils\exception_mapping_utils.py", line 2166, in exception_type
+    raise APIConnectionError(
+litellm.exceptions.APIConnectionError: litellm.APIConnectionError: ('invalid_grant: Invalid JWT Signature.', {'error': 'invalid_grant', 'error_description': 'Invalid JWT Signature.'})
+ Error during LLM call: litellm.APIConnectionError: ('invalid_grant: Invalid JWT Signature.', {'error': 'invalid_grant', 'error_description': 'Invalid JWT Signature.'})
+Traceback (most recent call last):
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\litellm\main.py", line 2304, in completion
+    model_response = vertex_chat_completion.completion(  # type: ignore
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\litellm\llms\vertex_ai\gemini\vertex_and_google_ai_studio_gemini.py", line 1204, in completion
+    _auth_header, vertex_project = self._ensure_access_token(
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\litellm\llms\vertex_ai\vertex_llm_base.py", line 130, in _ensure_access_token
+    self._credentials, cred_project_id = self.load_auth(
+                                         ^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\litellm\llms\vertex_ai\vertex_llm_base.py", line 91, in load_auth
+    creds.refresh(Request())  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\google\oauth2\service_account.py", line 448, in refresh
+    access_token, expiry, _ = _client.jwt_grant(
+                              ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\google\oauth2\_client.py", line 299, in jwt_grant
+    response_data = _token_endpoint_request(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\google\oauth2\_client.py", line 270, in _token_endpoint_request
+    _handle_error_response(response_data, retryable_error)
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\google\oauth2\_client.py", line 69, in _handle_error_response
+    raise exceptions.RefreshError(
+google.auth.exceptions.RefreshError: ('invalid_grant: Invalid JWT Signature.', {'error': 'invalid_grant', 'error_description': 'Invalid JWT Signature.'})
+
+Traceback (most recent call last):
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\litellm\main.py", line 2304, in completion
+    model_response = vertex_chat_completion.completion(  # type: ignore
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\litellm\llms\vertex_ai\gemini\vertex_and_google_ai_studio_gemini.py", line 1204, in completion
+    _auth_header, vertex_project = self._ensure_access_token(
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\litellm\llms\vertex_ai\vertex_llm_base.py", line 130, in _ensure_access_token
+    self._credentials, cred_project_id = self.load_auth(
+                                         ^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\litellm\llms\vertex_ai\vertex_llm_base.py", line 91, in load_auth
+    creds.refresh(Request())  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\google\oauth2\service_account.py", line 448, in refresh
+    access_token, expiry, _ = _client.jwt_grant(
+                              ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\google\oauth2\_client.py", line 299, in jwt_grant
+    response_data = _token_endpoint_request(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\google\oauth2\_client.py", line 270, in _token_endpoint_request
+    _handle_error_response(response_data, retryable_error)
+  File "C:\Users\SuvarnaSampath\PycharmProjects\Webagenticai\.venv\Lib\site-packages\google\oauth2\_client.py", line 69, in _handle_error_response
+    raise exceptions.RefreshError(
+google.auth.exceptions.RefreshError: ('invalid_grant: Invalid JWT Signature.', {'error': 'invalid_grant', 'error_description': 'Invalid JWT Signature.'})
