@@ -1,0 +1,106 @@
+Setting Up Langflow UI for Web Automation Agent
+
+We will set up Langflow to:
+	1.	Take a URL as input.
+	2.	Extract data from the website.
+	3.	Return the extracted text as output.
+
+Step 1: Install and Start Langflow
+
+If you haven’t installed Langflow yet, do:
+
+pip install langflow
+langflow
+
+	•	Open Langflow in your browser (http://localhost:7860).
+
+Step 2: Create a New Langflow Project
+	1.	Click “New Flow”.
+	2.	Name it “Web Scraper Agent”.
+
+Step 3: Add Nodes to Langflow
+
+We need three main components:
+	1.	Text Input → User enters the website URL.
+	2.	Python Function → Extracts text from the website.
+	3.	Output Display → Shows extracted text.
+
+Step 4: Add a Text Input Node
+	1.	Drag “Text Input” from the left panel.
+	2.	Click on the node and set:
+	•	Name: Website URL
+	•	Placeholder: Enter the website URL
+
+Step 5: Add a Python Function Node
+	1.	Drag “Python Function” from the left panel.
+	2.	Click the node and name it “Extract Data”.
+	3.	Copy and paste this function:
+
+from bs4 import BeautifulSoup
+import requests
+
+def extract_text_from_url(url):
+    try:
+        response = requests.get(url)
+        if response.status_code != 200:
+            return f"Error: Unable to access {url}"
+        
+        soup = BeautifulSoup(response.text, "html.parser")
+        paragraphs = soup.find_all("p")  # Extract paragraph text
+        extracted_text = "\n".join([p.get_text() for p in paragraphs])
+        
+        return extracted_text[:1000]  # Limit output to 1000 characters
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+	4.	Save the function.
+
+Step 6: Connect the Nodes
+	•	Drag a line from “Website URL” (Text Input) → “Extract Data” (Python Function).
+	•	The input URL is now passed to the function.
+
+Step 7: Add an Output Node
+	1.	Drag “Text Output” from the left panel.
+	2.	Name it “Extracted Data”.
+	3.	Connect “Extract Data” (Python Function) → “Extracted Data” (Output).
+
+Step 8: Run the Langflow Agent
+	1.	Click “Run”.
+	2.	Enter a website URL (e.g., https://example.com).
+	3.	Press Enter → It extracts text and displays the results.
+
+Bonus: Automate Form Filling with Selenium
+
+If you also want to enter data into forms on websites, replace the function in Step 5 with:
+
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+import time
+
+def fill_form_and_extract(url, input_text):
+    driver = webdriver.Chrome()  # Ensure ChromeDriver is installed
+    driver.get(url)
+    time.sleep(2)
+
+    search_box = driver.find_element(By.NAME, "q")  # Example: Google search bar
+    search_box.send_keys(input_text)
+    search_box.send_keys(Keys.RETURN)
+    time.sleep(2)
+
+    results = driver.find_elements(By.CSS_SELECTOR, "h3")
+    extracted_data = [result.text for result in results[:5]]
+
+    driver.quit()
+    return extracted_data
+
+Then:
+	•	Add another Text Input node for the input_text.
+	•	Pass both URL and input text to the function.
+
+Next Steps
+
+Would you like:
+✅ To save extracted data to a file?
+✅ To run this in production (deploy via FastAPI)?
+✅ A pre-built Langflow template?
