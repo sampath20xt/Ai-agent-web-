@@ -1,94 +1,177 @@
-import time
-from langgraph.graph import StateGraph, END
-from pydantic import BaseModel
-from typing import Optional, Dict
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
 
-# ✅ Step 1: Define State Schema
-class TrackingState(BaseModel):
-    mawb_number: str
-    tracking_result: Optional[str] = None
-
-# ✅ Step 2: User Input Agent
-def user_input_agent(state: TrackingState) -> Dict:
-    print(f"Received MAWB Number: {state.mawb_number}")
-    return {"mawb_number": state.mawb_number}
-
-# ✅ Step 3: Web Navigation & Extract Data from Iframe
-def track_cargo(state: TrackingState) -> Dict:
-    # Configure Selenium WebDriver
-    options = Options()
-    options.add_argument("--start-maximized")  # Maximize window
-    options.add_argument("--disable-blink-features=AutomationControlled")  # Bypass bot detection
-    options.add_argument("--headless")  # Remove this if you want to see browser actions
-
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-
-    # Open tracking website
-    driver.get("https://www.track-trace.com/aircargo")
-    time.sleep(5)  # Let the page load
-
-    # Enter MAWB number & Click Track
-    search_box = driver.find_element(By.CSS_SELECTOR, "input[placeholder='Enter number...']")
-    search_box.send_keys(state.mawb_number)
-
-    track_button = driver.find_element(By.ID, "wc-multi-form-button_options")
-    track_button.click()
-
-    # Wait for New Tab to Load & Switch to It
-    time.sleep(10)
-    driver.switch_to.window(driver.window_handles[-1])  # Switch to new tracking tab
-    time.sleep(5)
-
-    # ✅ Detect and Switch to the Correct Iframe (`frame-202`)
-    try:
-        driver.switch_to.frame(driver.find_element(By.NAME, "frame-202"))  # Switch to iframe
-        print("✅ Switched to tracking iframe.")
-    except:
-        print("❌ Error: Iframe not found.")
-        driver.quit()
-        return {"tracking_result": "Error: Tracking iframe not found."}
-
-    # ✅ Wait for content inside the iframe to load
-    time.sleep(15)
-
-    # ✅ Extract All Data from Inside the Iframe
-    tracking_data = driver.find_element(By.TAG_NAME, "body").text  # Extract everything inside iframe
-    driver.switch_to.default_content()  # Exit iframe
-    driver.quit()  # Close the browser
-
-    return {"tracking_result": tracking_data.strip()}
-
-# ✅ Step 4: Output Agent
-def output_agent(state: TrackingState) -> Dict:
-    print("\n✅ Final Tracking Results (All Extracted Data from Iframe):")
-    print(state.tracking_result)
-    return {}
-
-# ✅ Step 5: Create LangGraph Workflow
-graph = StateGraph(TrackingState)
-
-# Add nodes (agents)
-graph.add_node("User Input", user_input_agent)
-graph.add_node("Navigation", track_cargo)
-graph.add_node("Output", output_agent)
-
-# Define workflow
-graph.set_entry_point("User Input")
-graph.add_edge("User Input", "Navigation")
-graph.add_edge("Navigation", "Output")
-graph.add_edge("Output", END)
-
-# ✅ Step 6: Compile and Run
-agent_graph = graph.compile()
-
-mawb_number = input("Enter MAWB Number: ")
-initial_state = TrackingState(mawb_number=mawb_number)
-result = agent_graph.invoke(initial_state)
-
-print("\nFinal Extracted Tracking Data:")
-print(result["tracking_result"])
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tracking | AA Cargo</title>
+    <meta name="description" content="">
+    <meta name="format-detection" content="telephone=no">
+    <script type="text/javascript" src="/ruxitagentjs_ICANVfgqru_10305250107141607.js" data-dtconfig="rid=RID_-858746425|rpid=-1787165205|domain=aacargo.com|reportUrl=/rb_bf04553ytd|app=c409b5c1b250050b|cuc=uv6v8cp1|mel=100000|featureHash=ICANVfgqru|dpvc=1|lastModification=1739405365276|nsfnv=1|tp=500,50,0|rdnt=1|uxrgce=1|agentUri=/ruxitagentjs_ICANVfgqru_10305250107141607.js"></script><link rel="shortcut icon" href="/mobile/images/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="/mobile/images/favicon.png" type="image/x-icon">
+    <link href="/mobile/styles/main.css" rel="stylesheet">
+    <script src="/mobile/vendors/bundle.js?v=112917"></script>
+    <script type="text/javascript" src="/resources/js/vendor/jquery.validate.min.js"></script>
+    <script>
+// akam-sw.js install script version 1.3.3
+"serviceWorker"in navigator&&"find"in[]&&function(){var e=new Promise(function(e){"complete"===document.readyState||!1?e():(window.addEventListener("load",function(){e()}),setTimeout(function(){"complete"!==document.readyState&&e()},1e4))}),n=window.akamServiceWorkerInvoked,r="1.3.3";if(n)aka3pmLog("akam-setup already invoked");else{window.akamServiceWorkerInvoked=!0,window.aka3pmLog=function(){window.akamServiceWorkerDebug&&console.log.apply(console,arguments)};function o(e){(window.BOOMR_mq=window.BOOMR_mq||[]).push(["addVar",{"sm.sw.s":e,"sm.sw.v":r}])}var i="/akam-sw.js",a=new Map;navigator.serviceWorker.addEventListener("message",function(e){var n,r,o=e.data;if(o.isAka3pm)if(o.command){var i=(n=o.command,(r=a.get(n))&&r.length>0?r.shift():null);i&&i(e.data.response)}else if(o.commandToClient)switch(o.commandToClient){case"enableDebug":window.akamServiceWorkerDebug||(window.akamServiceWorkerDebug=!0,aka3pmLog("Setup script debug enabled via service worker message"),p());break;case"boomerangMQ":o.payload&&(window.BOOMR_mq=window.BOOMR_mq||[]).push(o.payload)}aka3pmLog("akam-sw message: "+JSON.stringify(e.data))});var t=function(e){return new Promise(function(n){var r,o;r=e.command,o=n,a.has(r)||a.set(r,[]),a.get(r).push(o),navigator.serviceWorker.controller&&(e.isAka3pm=!0,navigator.serviceWorker.controller.postMessage(e))})},c=function(e){return t({command:"navTiming",navTiming:e})},s=null,m={},d=function(){var e=i;return s&&(e+="?othersw="+encodeURIComponent(s)),function(e,n){return new Promise(function(r,i){aka3pmLog("Registering service worker with URL: "+e),navigator.serviceWorker.register(e,n).then(function(e){aka3pmLog("ServiceWorker registration successful with scope: ",e.scope),r(e),o(1)}).catch(function(e){aka3pmLog("ServiceWorker registration failed: ",e),o(0),i(e)})})}(e,m)},g=ServiceWorkerContainer.prototype.register;if(ServiceWorkerContainer.prototype.register=function(n,r){return n.includes(i)?g.call(this,n,r):(aka3pmLog("Overriding registration of service worker for: "+n),s=new URL(n,window.location.href),m=r,navigator.serviceWorker.controller?new Promise(function(n,r){var o=navigator.serviceWorker.controller.scriptURL;if(o.includes(i)){var a=encodeURIComponent(s);o.includes(a)?(aka3pmLog("Cancelling registration as we already integrate other SW: "+s),navigator.serviceWorker.getRegistration().then(function(e){n(e)})):e.then(function(){aka3pmLog("Unregistering existing 3pm service worker"),navigator.serviceWorker.getRegistration().then(function(e){e.unregister().then(function(){return d()}).then(function(e){n(e)}).catch(function(e){r(e)})})})}else aka3pmLog("Cancelling registration as we already have akam-sw.js installed"),navigator.serviceWorker.getRegistration().then(function(e){n(e)})}):g.call(this,n,r))},navigator.serviceWorker.controller){var u=navigator.serviceWorker.controller.scriptURL;u.includes("/akam-sw.js")||u.includes("/akam-sw-preprod.js")||u.includes("/threepm-sw.js")||(aka3pmLog("Detected existing service worker. Removing and re-adding inside akam-sw.js"),s=new URL(u,window.location.href),e.then(function(){navigator.serviceWorker.getRegistration().then(function(e){m={scope:e.scope},e.unregister(),d()})}))}else e.then(function(){window.akamServiceWorkerPreprod&&(i="/akam-sw-preprod.js"),d()});if(window.performance){var w=window.performance.timing,l=w.responseEnd-w.responseStart;c(l)}e.then(function(){t({command:"pageLoad"})});var k=!1;function p(){window.akamServiceWorkerDebug&&!k&&(k=!0,aka3pmLog("Initializing debug functions at window scope"),window.aka3pmInjectSwPolicy=function(e){return t({command:"updatePolicy",policy:e})},window.aka3pmDisableInjectedPolicy=function(){return t({command:"disableInjectedPolicy"})},window.aka3pmDeleteInjectedPolicy=function(){return t({command:"deleteInjectedPolicy"})},window.aka3pmGetStateAsync=function(){return t({command:"getState"})},window.aka3pmDumpState=function(){aka3pmGetStateAsync().then(function(e){aka3pmLog(JSON.stringify(e,null,"\t"))})},window.aka3pmInjectTiming=function(e){return c(e)},window.aka3pmUpdatePolicyFromNetwork=function(){return t({command:"pullPolicyFromNetwork"})})}p()}}();</script>
+<script>
+      (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+      new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+      j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+      'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+      })(window,document,'script','dataLayer','GTM-K3WSBW');
+    </script>
+  
+  <script>(window.BOOMR_mq=window.BOOMR_mq||[]).push(["addVar",{"rua.upush":"false","rua.cpush":"false","rua.upre":"false","rua.cpre":"false","rua.uprl":"false","rua.cprl":"false","rua.cprf":"false","rua.trans":"SJ-06f36c33-f9ba-4a73-b290-4c92e69d3c35","rua.cook":"true","rua.ims":"false","rua.ufprl":"false","rua.cfprl":"false"}]);</script>
+  <script>!function(e){var n="https://s.go-mpulse.net/boomerang/";if("False"=="True")e.BOOMR_config=e.BOOMR_config||{},e.BOOMR_config.PageParams=e.BOOMR_config.PageParams||{},e.BOOMR_config.PageParams.pci=!0,n="https://s2.go-mpulse.net/boomerang/";if(window.BOOMR_API_key="8WMGS-R456H-64GN8-4FVQL-CTDMX",function(){function e(){if(!o){var e=document.createElement("script");e.id="boomr-scr-as",e.src=window.BOOMR.url,e.async=!0,i.parentNode.appendChild(e),o=!0}}function t(e){o=!0;var n,t,a,r,d=document,O=window;if(window.BOOMR.snippetMethod=e?"if":"i",t=function(e,n){var t=d.createElement("script");t.id=n||"boomr-if-as",t.src=window.BOOMR.url,BOOMR_lstart=(new Date).getTime(),e=e||d.body,e.appendChild(t)},!window.addEventListener&&window.attachEvent&&navigator.userAgent.match(/MSIE [67]\./))return window.BOOMR.snippetMethod="s",void t(i.parentNode,"boomr-async");a=document.createElement("IFRAME"),a.src="about:blank",a.title="",a.role="presentation",a.loading="eager",r=(a.frameElement||a).style,r.width=0,r.height=0,r.border=0,r.display="none",i.parentNode.appendChild(a);try{O=a.contentWindow,d=O.document.open()}catch(c){n=document.domain,a.src="javascript:var d=document.open();d.domain='"+n+"';void(0);",O=a.contentWindow,d=O.document.open()}if(n)d._boomrl=function(){this.domain=n,t()},d.write("<bo"+"dy onload='document._boomrl();'>");else if(O._boomrl=function(){t()},O.addEventListener)O.addEventListener("load",O._boomrl,!1);else if(O.attachEvent)O.attachEvent("onload",O._boomrl);d.close()}function a(e){window.BOOMR_onload=e&&e.timeStamp||(new Date).getTime()}if(!window.BOOMR||!window.BOOMR.version&&!window.BOOMR.snippetExecuted){window.BOOMR=window.BOOMR||{},window.BOOMR.snippetStart=(new Date).getTime(),window.BOOMR.snippetExecuted=!0,window.BOOMR.snippetVersion=12,window.BOOMR.url=n+"8WMGS-R456H-64GN8-4FVQL-CTDMX";var i=document.currentScript||document.getElementsByTagName("script")[0],o=!1,r=document.createElement("link");if(r.relList&&"function"==typeof r.relList.supports&&r.relList.supports("preload")&&"as"in r)window.BOOMR.snippetMethod="p",r.href=window.BOOMR.url,r.rel="preload",r.as="script",r.addEventListener("load",e),r.addEventListener("error",function(){t(!0)}),setTimeout(function(){if(!o)t(!0)},3e3),BOOMR_lstart=(new Date).getTime(),i.parentNode.appendChild(r);else t(!1);if(window.addEventListener)window.addEventListener("load",a,!1);else if(window.attachEvent)window.attachEvent("onload",a)}}(),"".length>0)if(e&&"performance"in e&&e.performance&&"function"==typeof e.performance.setResourceTimingBufferSize)e.performance.setResourceTimingBufferSize();!function(){if(BOOMR=e.BOOMR||{},BOOMR.plugins=BOOMR.plugins||{},!BOOMR.plugins.AK){var n="false"=="true"?1:0,t="cookiepresent",a="ujoiazqx2nkruxztbswq-f-701ac576c-clientnsv4-s.akamaihd.net",i={"ak.v":"28","ak.cp":"757416","ak.ai":parseInt("492561",10),"ak.ol":"0","ak.cr":27,"ak.ipv":4,"ak.proto":"h2","ak.rid":"22703f","ak.r":20454,"ak.a2":n,"ak.m":"","ak.n":"essl","ak.bpcip":"162.92.128.0","ak.cport":18475,"ak.gh":"67.220.142.53","ak.quicv":"","ak.tlsv":"tls1.3","ak.0rtt":"","ak.csrc":"-","ak.acc":"","ak.t":"1597181101","ak.ak":"hOBiQwZUYzCg5VSAfCLimQ==jiefiNhItsYH5nSaEC3hvO6HciZdQfv9Z5b0ipgFFpHL0EUZ7Yf/+JDzqyqL1Q/K5ioYO1rtqlvefxevxtm5D/MMbHsKlqAJfWR/q7JpDKa9TYO/TRVFbEdlJRPF/nel2CB0c7UDByLEl1ODiT5UMXneRfydsax5Z5ftrznQbEG80wIxaVUejvxTaa3OH3bwkERmZRgDmHqigzppn2pdt1CcorG0YDuYVeqjgAntdY8o4kM3nzCHwdEKk25nKZXjQnQrf6HhH8+9cobKL7Ke4pfpXG8CgEmUUgTA1iS7LAKA6B4hD5i6o1vL9fkEKkNCyQwqGEgyX34ep3u8RLeH1npU0Ib9mSI7PBcbCWlNYH9fOg1BCK2PuDSON0HlJXnwdJUhVawN1jWD4dq1005nUYQnc1cmyqaBA8onM0YedC8=","ak.pv":"123","ak.dpoabenc":""};if(""!==t)i["ak.ruds"]=t;var o={i:!1,av:function(n){var t="http.initiator";if(n&&(!n[t]||"spa_hard"===n[t]))i["ak.feo"]=void 0!==e.aFeoApplied?1:0,BOOMR.addVar(i)},rv:function(){var e=["ak.bpcip","ak.cport","ak.cr","ak.csrc","ak.gh","ak.ipv","ak.m","ak.n","ak.ol","ak.proto","ak.quicv","ak.tlsv","ak.0rtt","ak.r","ak.acc","ak.t"];BOOMR.removeVar(e)}};BOOMR.plugins.AK={akVars:i,akDNSPreFetchDomain:a,init:function(){if(!o.i){var e=BOOMR.subscribe;e("before_beacon",o.av,null,null),e("onbeacon",o.rv,null,null),o.i=!0}return this},is_complete:function(){return!0}}}}()}(window);</script><script >bazadebezolkohpepadr="468813260"</script><script type="text/javascript" src="https://www.aacargo.com/akam/13/1bf18740"  defer></script></head>
+  <body>
+    <noscript>
+      <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-K3WSBW" height="0" width="0" style="display:none;visibility:hidden"></iframe>
+    </noscript>
+    <div class="c-app js-app">
+      <header class="c-app-header js-app-header" role="banner">
+      </header>
+      <main class="c-app__main js-app-main" role="main">
+        <div id="error"></div>
+        <div class="c-tracking-header">
+          <div class="c-tracking-header__group c-tracking-header__group--spread"><span class="c-tracking-header__awb-number"></span><span class="c-tracking-header__split"></span><span class="c-tracking-header__exptc"></span></div>
+          <div class="c-tracking-header__group"><span class="c-tracking-header__location" id="originAirportCode"> </span><span class="c-tracking-header__arrow-icon">&rarr;</span><span class="c-tracking-header__location" id="destinationAirportCode"> </span></div><span class="c-tracking-header__count" id="numberOfPiece"></span>
+        </div>
+        <div class="c-tracking-status">
+          <div class="c-tracking-status__holder js-tracking-status-holder">
+            <div class="c-tracking-status__bar js-tracking-status-bar">
+              <ul class="c-list c-tracking-status__list">
+                <li class="c-tracking-status__item is-incomplete"><span class="c-tracking-status__arrow"> </span></li>
+                <li class="c-tracking-status__item is-incomplete"><span class="c-tracking-status__arrow"> </span></li>
+                <li class="c-tracking-status__item is-incomplete"><span class="c-tracking-status__arrow"> </span></li>
+                <li class="c-tracking-status__item is-incomplete"><span class="c-tracking-status__arrow"> </span></li>
+              </ul>
+            </div>
+          </div>
+          <div class="c-tracking-status__latest"> </div>
+        </div>
+        <section class="c-tabs c-tabs--tracking js-tabs">
+          <ul class="c-tabs__nav" role="tablist">
+            <li class="c-tabs__item" title="Shipping History" role="presentation">
+              <button class="c-button c-tabs__button is-active js-tabs-trigger" id="tabs-trigger-1" role="tab" tabindex="0" aria-selected="true" aria-controls="tabs-target-1" data-tabs-id="1">Shipping History</button>
+            </li>
+            <li class="c-tabs__item" title="AWB Details" role="presentation">
+              <button class="c-button c-tabs__button js-tabs-trigger" id="tabs-trigger-2" role="tab" tabindex="-1" aria-selected="false" aria-controls="tabs-target-2" data-tabs-id="2">AWB Details</button>
+            </li>
+          </ul>
+          <div class="c-tabs__content is-active js-tabs-target" id="tabs-target-1" role="tabpanel" aria-labelledby="tabs-trigger-1" data-tabs-id="1">
+            <div class="js-tracking-history">
+              <!-- <div class="c-spinner"></div> -->
+            </div>
+            <div class="c-tracking-controls js-tracking-controls"></div>
+          </div>
+          <div class="c-tabs__content js-tabs-target" id="tabs-target-2" role="tabpanel" aria-labelledby="tabs-trigger-2" data-tabs-id="2">
+          	<!-- <div id="2TabSpinner"></div> -->
+            <div class="c-tracking-record" id="awbDetailsSection">
+              <h2 class="c-tracking-record__title c-tracking-record__title--space"></h2>
+              <p class="c-tracking-record__text" id="grossWeightUnit"></p>
+              <p class="c-tracking-record__text" id="volume"></p>
+              <p class="c-tracking-record__text" id="serviceLevel"></p>
+            </div>
+            <div class="c-tracking-record" id="customsSection">
+               <h2 class="c-tracking-record__title c-tracking-record__title--space">View Customs</h2>
+               <div class="js-tracking-customs">
+               	Loading customs...
+               </div>
+             </div>
+          </div>          
+        </section>
+      </main>
+      <div id="2TabSpinner"></div>
+      <div class="c-error has-margin" hidden="hidden"></div>
+      <section class="c-box c-box--copy">
+        <h2 class="c-box__title"> </h2>
+        <p class="c-box__text"></p>
+        <section class="c-drawer js-drawer" data-drawer-hash="#view-flight">
+          <div class="c-drawer__header"><i class="c-icon c-icon--flight c-drawer__icon t-blue"></i>
+            <h2 class="c-drawer__title">Flight Information</h2>
+            <button class="c-button c-drawer__icon js-close-drawer" role="button"><span class="u-invisible">Close flight information</span><i class="c-icon c-icon--close t-blue"></i></button>
+          </div>
+          <div class="c-drawer__body js-flight-drawer"></div>
+        </section>
+        <button class="c-button c-button--back-to-top js-back-to-top" role="button"><span class="u-invisible">Back To Top</span><i class="c-icon c-icon--arrow-up c-button__icon"></i></button>
+        <!-- <div class="c-overlay js-overlay">
+          <div class="c-spinner"></div>
+        </div> -->
+      </section>
+      <footer class="c-app__footer js-app-footer" role="contentinfo">
+        <section class="c-box c-box--track">
+          <h2 class="c-box__title">Track Another Shipment</h2>
+          <!-- <form class="c-form c-form--track-shipment js-focus-form js-track-form" id="awbTrackingForm" action="tracking-details.html" method="post">
+            <label class="u-invisible" for="awb-code">AWB Code</label>
+            <label class="c-form__label js-focus-label" for="awb-number">Enter 8-digit AWB #</label>
+            <div class="c-form__element js-focus-wrapper">
+              <div class="c-form__controls js-track-awb-wrapper">
+                <input class="c-form__input c-form__input--awb-code js-track-awb-code" type="tel" name="airwayBills[0].awbCode" id="awb-code" value="001" maxlength="3"><span class="c-form__divider"></span>
+                <input class="c-form__input c-form__input--awb-number js-focus-input js-track-awb-number" type="tel" name="airwayBills[0].awbNumber" id="awb-number" maxlength="8"><span class="c-form__error">Invalid air waybill number.</span>
+              </div>
+              <button class="c-button c-button--primary t-blue c-form__button">Track</button>
+            </div>
+          </form> -->
+          <div class="c-form c-form--track-shipment js-focus-form js-track-form" id="awbTrackingForm">
+            <label class="u-invisible" for="awb-code">AWB Code</label>
+            <label class="c-form__label js-focus-label" for="awb-number">Enter 8-digit AWB #</label>
+            <div class="c-form__element js-focus-wrapper">
+              <div class="c-form__controls js-track-awb-wrapper">
+                <input class="c-form__input c-form__input--awb-code js-track-awb-code" type="tel" name="airwayBills[0].awbCode" id="awb-code" value="001" maxlength="3"><span class="c-form__divider"></span>
+                <input class="c-form__input c-form__input--awb-number js-focus-input js-track-awb-number" type="tel" name="airwayBills[0].awbNumber" id="awb-number" maxlength="8"><span class="c-form__error">Invalid air waybill number.</span>
+              </div>
+              <button class="c-button c-button--primary t-blue c-form__button track-action-button">Track</button>
+            </div>
+          </div>
+        </section>
+        <ul class="c-list c-list--footer">
+          <li class="c-list__item"><a class="c-list__link" href="/contact.html">Contact</a></li>
+          <li class="c-list__item"><a class="c-list__link" href="https://www.aacargo.com/">Full Website</a></li>
+          <li class="c-list__item"><a class="c-list__link" href="https://www.aacargo.com/site/legal.html">Legal</a></li>
+        </ul>
+      </footer>
+    </div>
+    <div class="u-device-state u-invisible js-device-state"></div>
+    <script>
+    var TrackingConfig = {
+            isLocal: 'N',
+            awbCodeAndNumber: null,
+            //historyServiceUrl: '/mobile/data/tracking.domestic.freight.json',
+            //historyServiceUrl: '/mobile/data/tracking.details.json',
+            //flightServiceUrl: '/mobile/data/tracking.flight.json',
+            //customsServiceUrl: '/mobile/data/tracking.customs.json',
+            //facilityPageUrl: '/facilities/',
+            //desktopUrl: 'https://www.aacargo.com/',
+            //trackingDetailsUrl: '/mobile/data/tracking.details.json'
+            historyServiceUrl: '/api/tracking/awbs/',
+            // https://aacargo-gateway-stage.mybluemix.net/tracking/awbs/
+            flightServiceUrl: '/AACargo/FlightFo/getHistoryFlightInfo',
+            // customsServiceUrl: 'https://aacargo-gateway-stage.mybluemix.net/tracking/customs',
+            customsServiceUrl: '/api/tracking/customs',
+            facilityPageUrl: '/AACargo/ua/facilities/',
+            desktopUrl: '/AACargo/tracking/',
+            trackingDetailsUrl: '/api/tracking/awbs/',
+            // trackingDetailsUrl: 'https://aacargo-gateway-stage.mybluemix.net/tracking/awbs/', //  https://aacargo-gateway-stage.mybluemix.net/tracking/awbs/ /api/tracking/awbs/
+            sharedAllAirportsUrl: '/api/airports'
+            // sharedAllAirportsUrl: 'https://aacargo-gateway-stage.mybluemix.net/booking/bookingHelper/airports'
+          }; 
+    
+    </script>
+    <script>
+      $("header").load("/AACargo/mobile/header .u-wrapper", function(){
+        $("#loadLinks").load("/AACargo/mobile/mainBody", function(){
+          console.log('inside main')
+        });
+        window.Alerts.init();
+        window.AppNav.init();
+        window.AppFooter.init();
+      });
+    </script>
+    <script src="/mobile/scripts/main_tracking_include.js"></script>
+    <script src="/mobile/scripts/tracking.history.js"></script>
+    
+  <script type="text/javascript" >var _cf = _cf || []; _cf.push(['_setFsp', true]);  _cf.push(['_setBm', true]);  _cf.push(['_setAu', '/resources/269d2f4633rn2024955f681fcaac1dce']); </script><script type="text/javascript"  src="/resources/269d2f4633rn2024955f681fcaac1dce"></script><noscript><img src="https://www.aacargo.com/akam/13/pixel_1bf18740?a=dD1jZTJmNGExNWQxNjFkYmJkYTA2Njk2NmJlNTliNmFjN2MwZWRlOTQ0JmpzPW9mZg==" style="visibility: hidden; position: absolute; left: -999px; top: -999px;" /></noscript><script type="text/javascript"  src="/KgATD/L7/v/d/wGlGsBDlGTY/ikN94L3aizhfOa9t/VwVb/Il/daDTcZbFYB"></script></body>
+</html>
