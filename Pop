@@ -1,0 +1,90 @@
+import time
+from typing import Dict
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
+from langgraph.graph import StateGraph, END
+
+# ✅ Step 1: Define the Tracking State for LangGraph
+class TrackingState:
+    def __init__(self, mawb_number: str):
+        self.mawb_number = mawb_number
+        self.data = None
+
+# ✅ Step 2: Define the Selenium Automation Agent
+def track_cargo(state: TrackingState) -> Dict:
+    options = Options()
+    options.add_argument("--headless=new")  # ✅ Enable headless mode (background execution)
+    options.add_argument("--disable-gpu")  # Required for headless mode
+    options.add_argument("--window-size=1920,1080")  # Ensures proper rendering in headless mode
+    options.add_argument("--disable-blink-features=AutomationControlled")  # Bypass bot detection
+
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    
+    try:
+        # ✅ Step 3: Open tracking website
+        driver.get("https://www.track-trace.com/aircargo")
+        time.sleep(5)  # Allow initial page load
+
+        # ✅ Step 4: Enter MAWB Number and Click 'Track with Options'
+        search_box = driver.find_element(By.CSS_SELECTOR, "input[placeholder='Enter number...']")
+        search_box.send_keys(state.mawb_number)
+
+        track_button = driver.find_element(By.ID, "wc-multi-form-button_options")
+        track_button.click()
+
+        # ✅ Step 5: Wait for New Tab & Switch to It
+        time.sleep(15)  # Ensures correct page loads before proceeding
+        driver.switch_to.window(driver.window_handles[-1])  # Switch to tracking tab
+
+        # ✅ Step 6: Detect and Switch to the Tracking Iframe
+        try:
+            iframe_element = WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.NAME, "frame-202"))
+            )
+            driver.switch_to.frame(iframe_element)  # Switch into the iframe
+            print("✅ Switched to tracking iframe.")
+        except Exception as e:
+            print(f"❌ Error: Tracking iframe not found. {e}")
+            driver.quit()
+            return {"status": "error", "message": "Tracking iframe not found"}
+
+        # ✅ Step 7: Scroll and Wait for Data to Load
+        time.sleep(10)  # Allow tracking data to fully load
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(5)
+
+        # ✅ Step 8: Extract All Visible Data
+        try:
+            tracking_data = driver.find_element(By.TAG_NAME, "body").text  # Extract everything inside iframe
+            print("\n✅ Final Extracted Tracking Data:")
+            print(tracking_data)
+            state.data = tracking_data
+            return {"status": "success", "data": tracking_data}
+        except Exception as e:
+            print(f"❌ Error: Unable to extract tracking data. {e}")
+            return {"status": "error", "message": "Unable to extract tracking data"}
+
+    finally:
+        driver.quit()  # Close the browser after completion
+
+# ✅ Step 9: Define the LangGraph Workflow
+graph = StateGraph(TrackingState)
+graph.add_node("track_cargo", track_cargo)
+graph.set_entry_point("track_cargo")
+graph.add_edge("track_cargo", END)
+
+# ✅ Step 10: Compile and Execute the Graph
+agent_graph = graph.compile()
+
+if __name__ == "__main__":
+    mawb_number = input("Enter MAWB Number: ")
+    initial_state = TrackingState(mawb_number=mawb_number)
+    result = agent_graph.invoke(initial_state)
+
+    print("\n✅ Final Extracted Tracking Data:")
+    print(result.get("data", "No Data Extracted"))
