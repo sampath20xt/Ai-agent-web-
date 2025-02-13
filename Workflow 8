@@ -1,0 +1,80 @@
+import time
+from langgraph.graph import StateGraph, END
+from pydantic import BaseModel
+from typing import Optional, Dict
+from playwright.sync_api import sync_playwright
+
+# ✅ Step 1: Define State Schema
+class TrackingState(BaseModel):
+    mawb_number: str
+    tracking_result: Optional[str] = None
+
+# ✅ Step 2: User Input Agent
+def user_input_agent(state: TrackingState) -> Dict:
+    print(f"Received MAWB Number: {state.mawb_number}")
+    return {"mawb_number": state.mawb_number}
+
+# ✅ Step 3: Web Navigation & Extract All Visible Data After 30s
+def track_cargo(state: TrackingState) -> Dict:
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False)  # Set headless=True for silent execution
+        context = browser.new_context()
+        page = context.new_page()
+        
+        # Open tracking website
+        url = "https://www.track-trace.com/aircargo"
+        page.goto(url)
+        page.wait_for_selector("input[placeholder='Enter number...']", timeout=20000)  # ✅ Wait for input field
+        
+        # Enter MAWB number
+        page.fill("input[placeholder='Enter number...']", state.mawb_number)
+
+        # Click "Track with options" and wait for a new tab to open
+        button_selector = "#wc-multi-form-button_options"
+        page.wait_for_selector(button_selector, timeout=15000)
+        
+        with context.expect_page() as new_page_info:
+            page.click(button_selector)  # Opens new tab
+        
+        new_page = new_page_info.value  # ✅ Switch to the new tracking results page
+        new_page.wait_for_load_state("load")
+
+        # ✅ Wait 30 seconds to allow full content to load
+        print("⏳ Waiting 30 seconds for tracking data to fully load...")
+        time.sleep(30)
+
+        # ✅ Extract all visible text after waiting
+        tracking_data = new_page.evaluate("document.body.innerText")
+
+        browser.close()
+        return {"tracking_result": tracking_data.strip()}
+
+# ✅ Step 4: Output Agent
+def output_agent(state: TrackingState) -> Dict:
+    print("\n✅ Final Tracking Results (All Extracted Data):")
+    print(state.tracking_result)
+    return {}
+
+# ✅ Step 5: Create LangGraph Workflow
+graph = StateGraph(TrackingState)
+
+# Add nodes (agents)
+graph.add_node("User Input", user_input_agent)
+graph.add_node("Navigation", track_cargo)
+graph.add_node("Output", output_agent)
+
+# Define workflow
+graph.set_entry_point("User Input")
+graph.add_edge("User Input", "Navigation")
+graph.add_edge("Navigation", "Output")
+graph.add_edge("Output", END)
+
+# ✅ Step 6: Compile and Run
+agent_graph = graph.compile()
+
+mawb_number = input("Enter MAWB Number: ")
+initial_state = TrackingState(mawb_number=mawb_number)
+result = agent_graph.invoke(initial_state)
+
+print("\nFinal Extracted Tracking Data:")
+print(result["tracking_result"])
