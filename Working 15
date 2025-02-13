@@ -1,0 +1,124 @@
+import time
+from langgraph.graph import StateGraph, END
+from pydantic import BaseModel
+from typing import Optional, Dict
+from playwright.sync_api import sync_playwright
+from bs4 import BeautifulSoup
+
+# ✅ Step 1: Define State Schema
+class TrackingState(BaseModel):
+    mawb_number: str
+    tracking_result: Optional[str] = None
+
+# ✅ Step 2: User Input Agent
+def user_input_agent(state: TrackingState) -> Dict:
+    print(f"Received MAWB Number: {state.mawb_number}")
+    return {"mawb_number": state.mawb_number}
+
+# ✅ Step 3: Web Navigation & Scraping Agent (Correct iframe Handling)
+def track_cargo(state: TrackingState) -> Dict:
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False)  # Set headless=True for silent execution
+        context = browser.new_context()
+        page = context.new_page()
+        
+        # Open tracking website
+        url = "https://www.track-trace.com/aircargo"
+        page.goto(url)
+        page.wait_for_selector("input[placeholder='Enter number...']", timeout=15000)  # ✅ Wait for input field
+        
+        # Enter MAWB number
+        page.fill("input[placeholder='Enter number...']", state.mawb_number)
+
+        # Click "Track with options" and wait for a new tab to open
+        button_selector = "#wc-multi-form-button_options"
+        page.wait_for_selector(button_selector, timeout=10000)
+        
+        with context.expect_page() as new_page_info:
+            page.click(button_selector)  # Opens new tab
+        
+        new_page = new_page_info.value  # ✅ Switch to the new tracking results page
+        new_page.wait_for_load_state("load")
+
+        # ✅ Ensure we are on the American Airlines (AA) tracking page
+        if not new_page.is_visible("a.panel-block.is-active span:text('American Airlines(AA)')"):
+            print("❌ Not on the correct tracking page.")
+            browser.close()
+            return {"tracking_result": "Error: Incorrect tracking page loaded."}
+
+        print("✅ Correct tracking page detected!")
+
+        # ✅ Debugging: Print all iframe names to verify correct selection
+        frames = new_page.frames
+        print(f"🔍 Available iframes: {[frame.name for frame in frames]}")
+
+        # ✅ Locate the correct iframe (Check name or URL)
+        target_frame = None
+        for frame in frames:
+            if "frame-202" in frame.name:
+                target_frame = frame
+                break
+        
+        if not target_frame:
+            print("❌ No iframe named 'frame-202' found. Trying first available iframe.")
+            target_frame = frames[0] if frames else None
+
+        if not target_frame:
+            print("❌ No iframe found on the page.")
+            browser.close()
+            return {"tracking_result": "Error: Tracking iframe not found."}
+
+        print(f"✅ Switched to iframe: {target_frame.name}")
+
+        # ✅ Wait for iframe content to load
+        target_frame.wait_for_load_state("load")
+
+        # ✅ Wait for tracking results section to be visible inside iframe
+        try:
+            target_frame.wait_for_selector("div.track-res-base.track_res", timeout=30000)
+        except:
+            print("❌ Tracking data did not load inside iframe.")
+            browser.close()
+            return {"tracking_result": "Error: Tracking data not found in iframe."}
+
+        # ✅ Extract tracking details from iframe
+        soup = BeautifulSoup(target_frame.content(), "html.parser")
+        tracking_div = soup.select_one("div.track-res-base.track_res")
+
+        if tracking_div:
+            results = tracking_div.get_text(separator="\n", strip=True)
+        else:
+            results = "❌ Tracking data not found inside iframe."
+
+        browser.close()
+        return {"tracking_result": results}
+
+# ✅ Step 4: Output Agent
+def output_agent(state: TrackingState) -> Dict:
+    print("\n✅ Final Tracking Results (American Airlines Only):")
+    print(state.tracking_result)
+    return {}
+
+# ✅ Step 5: Create LangGraph Workflow
+graph = StateGraph(TrackingState)
+
+# Add nodes (agents)
+graph.add_node("User Input", user_input_agent)
+graph.add_node("Navigation", track_cargo)
+graph.add_node("Output", output_agent)
+
+# Define workflow
+graph.set_entry_point("User Input")
+graph.add_edge("User Input", "Navigation")
+graph.add_edge("Navigation", "Output")
+graph.add_edge("Output", END)
+
+# ✅ Step 6: Compile and Run
+agent_graph = graph.compile()
+
+mawb_number = input("Enter MAWB Number: ")
+initial_state = TrackingState(mawb_number=mawb_number)
+result = agent_graph.invoke(initial_state)
+
+print("\nFinal Extracted Tracking Data:")
+print(result["tracking_result"])
