@@ -1,0 +1,65 @@
+import langgraph as lg
+from langchain.tools import Tool
+from playwright.sync_api import sync_playwright
+from bs4 import BeautifulSoup
+import time
+
+# Function to scrape tracking results
+def track_cargo(mawb_number):
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False)
+        page = browser.new_page()
+        
+        # Open tracking website
+        url = "https://www.track-trace.com/aircargo"
+        page.goto(url)
+        time.sleep(3)  # Allow time for loading
+
+        # Enter MAWB number
+        page.fill("input[placeholder='Enter number...']", mawb_number)
+        page.click("button:has-text('Track with options')")
+
+        # Wait for results to load
+        page.wait_for_selector("div.resultbox", timeout=10000)
+
+        # Scrape results
+        soup = BeautifulSoup(page.content(), "html.parser")
+        results = soup.find("div", class_="resultbox").get_text()
+
+        browser.close()
+        
+        return results.strip()
+
+# Define the agents
+user_input_agent = Tool.from_function(
+    name="User Input Agent",
+    description="Takes user input for MAWB number.",
+    func=lambda x: x
+)
+
+navigation_agent = Tool.from_function(
+    name="Navigation Agent",
+    description="Navigates to track-trace website and enters MAWB number.",
+    func=track_cargo
+)
+
+# Define the graph
+graph = lg.Graph()
+
+# Define the workflow
+graph.add_node("User Input", user_input_agent.run)
+graph.add_node("Navigation", navigation_agent.run)
+
+# Connect workflow
+graph.add_edge("User Input", "Navigation")
+
+# Define starting point
+graph.set_entry_point("User Input")
+
+# Create a LangGraph workflow executor
+workflow = lg.executor(graph)
+
+# Run the pipeline
+mawb_number = input("Enter MAWB Number: ")
+output = workflow.invoke(mawb_number)
+print("\nTracking Results:\n", output)
