@@ -1,0 +1,77 @@
+import time
+from langgraph.graph import StateGraph, END
+from pydantic import BaseModel
+from typing import Optional, Dict
+from playwright.sync_api import sync_playwright
+from bs4 import BeautifulSoup
+
+# ✅ Step 1: Define a state schema (fixing ValueError)
+class TrackingState(BaseModel):
+    mawb_number: str
+    tracking_result: Optional[str] = None  # Stores scraped tracking info
+
+
+# ✅ Step 2: User Input Agent
+def user_input_agent(state: TrackingState) -> Dict:
+    print(f"Received MAWB Number: {state.mawb_number}")
+    return {"mawb_number": state.mawb_number}
+
+
+# ✅ Step 3: Web Navigation & Scraping Agent
+def track_cargo(state: TrackingState) -> Dict:
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        
+        # Open tracking website
+        url = "https://www.track-trace.com/aircargo"
+        page.goto(url)
+        time.sleep(3)  # Allow page to load
+
+        # Enter MAWB number and track
+        page.fill("input[placeholder='Enter number...']", state.mawb_number)
+        page.click("button:has-text('Track with options')")
+        
+        # Wait for results to load
+        page.wait_for_selector("div.resultbox", timeout=10000)
+
+        # Extract tracking data
+        soup = BeautifulSoup(page.content(), "html.parser")
+        results = soup.find("div", class_="resultbox").get_text(strip=True)
+
+        browser.close()
+        
+        return {"tracking_result": results}
+
+
+# ✅ Step 4: Output Agent
+def output_agent(state: TrackingState) -> Dict:
+    print("\nTracking Results:")
+    print(state.tracking_result)
+    return {}
+
+
+# ✅ Step 5: Create the LangGraph Workflow
+graph = StateGraph(TrackingState)  # 🔥 Fix: Add schema
+
+# Add nodes (agents)
+graph.add_node("User Input", user_input_agent)
+graph.add_node("Navigation", track_cargo)
+graph.add_node("Output", output_agent)
+
+# Define the workflow
+graph.set_entry_point("User Input")
+graph.add_edge("User Input", "Navigation")
+graph.add_edge("Navigation", "Output")
+graph.add_edge("Output", END)
+
+# ✅ Step 6: Compile and Execute the Graph
+agent_graph = graph.compile()
+
+# ✅ Step 7: Run the multi-agent system
+mawb_number = input("Enter MAWB Number: ")
+initial_state = TrackingState(mawb_number=mawb_number)
+result = agent_graph.invoke(initial_state)
+
+print("\nFinal Extracted Tracking Data:")
+print(result["tracking_result"])
