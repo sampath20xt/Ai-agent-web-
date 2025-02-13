@@ -1,0 +1,106 @@
+import time
+from langgraph.graph import StateGraph, END
+from pydantic import BaseModel
+from typing import Optional, Dict
+from playwright.sync_api import sync_playwright
+from bs4 import BeautifulSoup
+
+# ✅ Step 1: Define State Schema
+class TrackingState(BaseModel):
+    mawb_number: str
+    tracking_result: Optional[str] = None
+
+# ✅ Step 2: User Input Agent
+def user_input_agent(state: TrackingState) -> Dict:
+    print(f"Received MAWB Number: {state.mawb_number}")
+    return {"mawb_number": state.mawb_number}
+
+# ✅ Step 3: Web Navigation & Scraping Agent (Increased Wait Time)
+def track_cargo(state: TrackingState) -> Dict:
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False)  # Use headless=True for silent execution
+        context = browser.new_context()
+        page = context.new_page()
+        
+        # Open tracking website
+        url = "https://www.track-trace.com/aircargo"
+        page.goto(url)
+        page.wait_for_selector("input[placeholder='Enter number...']", timeout=20000)  # ✅ Wait for input field
+        
+        # Enter MAWB number
+        page.fill("input[placeholder='Enter number...']", state.mawb_number)
+
+        # Click "Track with options" and wait for a new tab to open
+        button_selector = "#wc-multi-form-button_options"
+        page.wait_for_selector(button_selector, timeout=15000)
+        
+        with context.expect_page() as new_page_info:
+            page.click(button_selector)  # Opens new tab
+        
+        new_page = new_page_info.value  # ✅ Switch to the new tracking results page
+        new_page.wait_for_load_state("load")
+
+        # ✅ Ensure we are on the American Airlines (AA) tracking page
+        if not new_page.is_visible("a.panel-block.is-active span:text('American Airlines(AA)')"):
+            print("❌ Not on the correct tracking page.")
+            browser.close()
+            return {"tracking_result": "Error: Incorrect tracking page loaded."}
+
+        print("✅ Correct tracking page detected!")
+
+        # ✅ Increase wait time for tracking records to fully load
+        tracking_selector = "div.c-tracking-record.js-tracking-record"
+        try:
+            new_page.wait_for_selector(tracking_selector, timeout=60000)  # ⏳ 60 seconds timeout
+            time.sleep(5)  # ✅ Extra delay to ensure data fully loads
+        except:
+            print("❌ Tracking data did not load in time.")
+            browser.close()
+            return {"tracking_result": "Error: Tracking data not found."}
+
+        # ✅ Extract tracking details
+        soup = BeautifulSoup(new_page.content(), "html.parser")
+        tracking_records = soup.select("div.c-tracking-record.js-tracking-record")
+
+        results = []
+        for record in tracking_records:
+            pieces = record.select_one("span.c-tracking-record__meta").text.strip()
+            status = record.select_one("h2.c-tracking-record__title").text.strip()
+            details = record.select_one("p.c-tracking-record__text").get_text(separator=" ", strip=True)
+            results.append(f"{pieces} - {status}: {details}")
+
+        if not results:
+            results.append("❌ No tracking records found.")
+
+        browser.close()
+        return {"tracking_result": "\n".join(results)}
+
+# ✅ Step 4: Output Agent
+def output_agent(state: TrackingState) -> Dict:
+    print("\n✅ Final Tracking Results (American Airlines Only):")
+    print(state.tracking_result)
+    return {}
+
+# ✅ Step 5: Create LangGraph Workflow
+graph = StateGraph(TrackingState)
+
+# Add nodes (agents)
+graph.add_node("User Input", user_input_agent)
+graph.add_node("Navigation", track_cargo)
+graph.add_node("Output", output_agent)
+
+# Define workflow
+graph.set_entry_point("User Input")
+graph.add_edge("User Input", "Navigation")
+graph.add_edge("Navigation", "Output")
+graph.add_edge("Output", END)
+
+# ✅ Step 6: Compile and Run
+agent_graph = graph.compile()
+
+mawb_number = input("Enter MAWB Number: ")
+initial_state = TrackingState(mawb_number=mawb_number)
+result = agent_graph.invoke(initial_state)
+
+print("\nFinal Extracted Tracking Data:")
+print(result["tracking_result"])
