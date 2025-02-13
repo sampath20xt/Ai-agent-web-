@@ -1,0 +1,100 @@
+import time
+from langgraph.graph import StateGraph, END
+from pydantic import BaseModel
+from typing import Optional, Dict
+from playwright.sync_api import sync_playwright
+from bs4 import BeautifulSoup
+
+# ✅ Step 1: Define State Schema
+class TrackingState(BaseModel):
+    mawb_number: str
+    tracking_result: Optional[str] = None
+
+# ✅ Step 2: User Input Agent
+def user_input_agent(state: TrackingState) -> Dict:
+    print(f"Received MAWB Number: {state.mawb_number}")
+    return {"mawb_number": state.mawb_number}
+
+# ✅ Step 3: Web Navigation & Scraping Agent (Extracting Full Page)
+def track_cargo(state: TrackingState) -> Dict:
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False)  # Use headless=True for silent execution
+        context = browser.new_context()
+        page = context.new_page()
+        
+        # Open tracking website
+        url = "https://www.track-trace.com/aircargo"
+        page.goto(url)
+        page.wait_for_selector("input[placeholder='Enter number...']", timeout=20000)  # ✅ Wait for input field
+        
+        # Enter MAWB number
+        page.fill("input[placeholder='Enter number...']", state.mawb_number)
+
+        # Click "Track with options" and wait for a new tab to open
+        button_selector = "#wc-multi-form-button_options"
+        page.wait_for_selector(button_selector, timeout=15000)
+        
+        with context.expect_page() as new_page_info:
+            page.click(button_selector)  # Opens new tab
+        
+        new_page = new_page_info.value  # ✅ Switch to the new tracking results page
+        new_page.wait_for_load_state("load")
+
+        # ✅ Extra 15-second delay to allow American Airlines page to fully load
+        print("⏳ Waiting 15 seconds to allow full page load...")
+        time.sleep(15)
+
+        # ✅ Ensure we are on the American Airlines (AA) tracking page
+        if not new_page.is_visible("a.panel-block.is-active span:text('American Airlines(AA)')"):
+            print("❌ Not on the correct tracking page.")
+            browser.close()
+            return {"tracking_result": "Error: Incorrect tracking page loaded."}
+
+        print("✅ Correct tracking page detected!")
+
+        # ✅ Wait for all content to be visible before extracting
+        body_selector = "body"
+        try:
+            new_page.wait_for_selector(body_selector, timeout=60000)  # ⏳ 60 seconds timeout
+            time.sleep(5)  # ✅ Extra delay to ensure full page content is available
+        except:
+            print("❌ Page content did not load in time.")
+            browser.close()
+            return {"tracking_result": "Error: Full tracking page data not found."}
+
+        # ✅ Extract all text content from the page
+        soup = BeautifulSoup(new_page.content(), "html.parser")
+        full_page_text = soup.get_text(separator="\n", strip=True)
+
+        browser.close()
+        return {"tracking_result": full_page_text}
+
+# ✅ Step 4: Output Agent
+def output_agent(state: TrackingState) -> Dict:
+    print("\n✅ Final Tracking Results (Full Page Data from American Airlines):")
+    print(state.tracking_result)
+    return {}
+
+# ✅ Step 5: Create LangGraph Workflow
+graph = StateGraph(TrackingState)
+
+# Add nodes (agents)
+graph.add_node("User Input", user_input_agent)
+graph.add_node("Navigation", track_cargo)
+graph.add_node("Output", output_agent)
+
+# Define workflow
+graph.set_entry_point("User Input")
+graph.add_edge("User Input", "Navigation")
+graph.add_edge("Navigation", "Output")
+graph.add_edge("Output", END)
+
+# ✅ Step 6: Compile and Run
+agent_graph = graph.compile()
+
+mawb_number = input("Enter MAWB Number: ")
+initial_state = TrackingState(mawb_number=mawb_number)
+result = agent_graph.invoke(initial_state)
+
+print("\nFinal Extracted Tracking Data:")
+print(result["tracking_result"])
