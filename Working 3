@@ -1,0 +1,79 @@
+import time
+from langgraph.graph import StateGraph, END
+from pydantic import BaseModel
+from typing import Optional, Dict
+from playwright.sync_api import sync_playwright
+from bs4 import BeautifulSoup
+
+# ✅ Step 1: Define State Schema
+class TrackingState(BaseModel):
+    mawb_number: str
+    tracking_result: Optional[str] = None
+
+# ✅ Step 2: User Input Agent
+def user_input_agent(state: TrackingState) -> Dict:
+    print(f"Received MAWB Number: {state.mawb_number}")
+    return {"mawb_number": state.mawb_number}
+
+# ✅ Step 3: Web Navigation & Scraping Agent (Fixed Playwright Issues)
+def track_cargo(state: TrackingState) -> Dict:
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False)  # Use headless=True for silent execution
+        page = browser.new_page()
+        
+        # Open tracking website
+        url = "https://www.track-trace.com/aircargo"
+        page.goto(url)
+        page.wait_for_selector("input[placeholder='Enter number...']", timeout=15000)  # ✅ Wait for input field to appear
+        
+        # Enter MAWB number
+        page.fill("input[placeholder='Enter number...']", state.mawb_number)
+
+        # ✅ Click "Track with options" using ID selector
+        try:
+            button_selector = "#wc-multi-form-button_options"
+            page.wait_for_selector(button_selector, timeout=10000)  # ✅ Wait for button to appear
+            page.click(button_selector)
+        except Exception as e:
+            print("❌ Failed to find 'Track with options' button!", e)
+            return {"tracking_result": "Error: Could not find tracking button."}
+
+        # ✅ Wait for tracking results to load (instead of networkidle)
+        page.wait_for_selector("div.resultbox", timeout=20000)  # ✅ Wait for results container
+
+        # ✅ Extract tracking results
+        soup = BeautifulSoup(page.content(), "html.parser")
+        results = soup.find("div", class_="resultbox").get_text(strip=True)
+
+        browser.close()
+        return {"tracking_result": results}
+
+# ✅ Step 4: Output Agent
+def output_agent(state: TrackingState) -> Dict:
+    print("\nTracking Results:")
+    print(state.tracking_result)
+    return {}
+
+# ✅ Step 5: Create LangGraph Workflow
+graph = StateGraph(TrackingState)
+
+# Add nodes (agents)
+graph.add_node("User Input", user_input_agent)
+graph.add_node("Navigation", track_cargo)
+graph.add_node("Output", output_agent)
+
+# Define workflow
+graph.set_entry_point("User Input")
+graph.add_edge("User Input", "Navigation")
+graph.add_edge("Navigation", "Output")
+graph.add_edge("Output", END)
+
+# ✅ Step 6: Compile and Run
+agent_graph = graph.compile()
+
+mawb_number = input("Enter MAWB Number: ")
+initial_state = TrackingState(mawb_number=mawb_number)
+result = agent_graph.invoke(initial_state)
+
+print("\nFinal Extracted Tracking Data:")
+print(result["tracking_result"])
